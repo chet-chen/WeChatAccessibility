@@ -24,11 +24,12 @@ public class MyAccessibilityService extends AccessibilityService {
     private static final String BACK_BUTTON_ID = "com.tencent.mm:id/gd";
     private static final String SLOW_TEXT_ID = "com.tencent.mm:id/bg6";
     private boolean isAccessibility = false;
+    private boolean isMeUnLock = false;
+    private boolean beforeLauncherUI = false;
     private PowerManager pm;
     private PowerManager.WakeLock wakeLock;
     private KeyguardManager km;
     private KeyguardManager.KeyguardLock keyguardLock;
-
     private List<AccessibilityNodeInfo> parents;
 
     @Override
@@ -64,9 +65,19 @@ public class MyAccessibilityService extends AccessibilityService {
                                     autoUnlock();
                                     Log.d(TAG, "onAccessibilityEvent: start Accessibility");
                                     pendingIntent.send();
+//                                  如果开启抢红包之前就处在LauncherUI则手动getLastPacket();
+                                    if (beforeLauncherUI) {
+                                        try {
+                                            Thread.sleep(500);
+                                            getLastPacket();
+                                        } catch (InterruptedException e) {
+                                            e.printStackTrace();
+                                        }
+                                    }
                                     Log.d(TAG, "onAccessibilityEvent: 进入微信");
                                 } catch (PendingIntent.CanceledException e) {
                                     e.printStackTrace();
+                                    isAccessibility = false;
                                 }
                             }
                         }
@@ -75,6 +86,9 @@ public class MyAccessibilityService extends AccessibilityService {
                 break;
 //            窗口状态发生变化
             case AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED:
+                Log.d(TAG, "onAccessibilityEvent: eventContent " + event.toString());
+//                如果抢红包之前就处于launchUI，则不会触发WindowChange事件，在这记录抢红包之前最后一次是否处在launchUI
+                beforeLauncherUI = event.getClassName().toString().equals("com.tencent.mm.ui.LauncherUI");
                 if (!isAccessibility) {
                     return;
                 }
@@ -98,6 +112,7 @@ public class MyAccessibilityService extends AccessibilityService {
                         Log.d(TAG, "onAccessibilityEvent: stop Accessibility");
                     } catch (InterruptedException e) {
                         e.printStackTrace();
+                        isAccessibility = false;
                     }
                 }
                 break;
@@ -105,6 +120,7 @@ public class MyAccessibilityService extends AccessibilityService {
     }
 
     private void inputClick(String clickId) {
+//        点击指定id Node
         AccessibilityNodeInfo nodeInfo = getRootInActiveWindow();
         if (nodeInfo != null) {
             List<AccessibilityNodeInfo> list = nodeInfo.findAccessibilityNodeInfosByViewId(clickId);
@@ -115,6 +131,7 @@ public class MyAccessibilityService extends AccessibilityService {
     }
 
     public void getLastPacket() {
+//        点击最后一个红包
         AccessibilityNodeInfo rootNode = getRootInActiveWindow();
         recycle(rootNode);
         if (parents.size() > 0) {
@@ -150,6 +167,7 @@ public class MyAccessibilityService extends AccessibilityService {
     }
 
     private void slow(String id) {
+//        手慢了情况下
         AccessibilityNodeInfo nodeInfo = getRootInActiveWindow();
         if (nodeInfo != null) {
             List<AccessibilityNodeInfo> list = nodeInfo.findAccessibilityNodeInfosByViewId(id);
@@ -165,6 +183,7 @@ public class MyAccessibilityService extends AccessibilityService {
                         Log.d(TAG, "slow: stop Accessibilty");
                     } catch (InterruptedException e) {
                         e.printStackTrace();
+                        isAccessibility = false;
                     }
                 }
             }
@@ -179,16 +198,20 @@ public class MyAccessibilityService extends AccessibilityService {
         if (km.inKeyguardRestrictedInputMode()) {
             keyguardLock.disableKeyguard();
             Log.d(TAG, "onAccessibilityEvent: 解锁");
+            isMeUnLock = true;
         }
     }
 
     private void autoLock() {
+        if (!isMeUnLock)
+            return;
         keyguardLock.reenableKeyguard();
         Log.d(TAG, "autoLock: 自动锁");
         if (wakeLock != null && pm.isScreenOn()) {
             wakeLock.release();
             Log.d(TAG, "autoLock: 自动灭");
         }
+        isMeUnLock = false;
     }
 
     @Override
