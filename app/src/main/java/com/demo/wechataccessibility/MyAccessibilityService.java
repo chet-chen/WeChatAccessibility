@@ -104,16 +104,11 @@ public class MyAccessibilityService extends AccessibilityService {
                 } else if (className.equals("com.tencent.mm.plugin.luckymoney.ui.LuckyMoneyDetailUI")) {
                     inputClick(BACK_BUTTON_ID);
                     Log.d(TAG, "onAccessibilityEvent: 退出红包");
-                    try {
-                        isAccessibility = false;
-                        Thread.sleep(800);
-                        this.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
-                        autoLock();
-                        Log.d(TAG, "onAccessibilityEvent: stop Accessibility");
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                        isAccessibility = false;
-                    }
+                    isAccessibility = false;
+                    doBack(800);
+                    autoLock();
+                    Log.d(TAG, "onAccessibilityEvent: stop Accessibility");
+                    isAccessibility = false;
                 }
                 break;
         }
@@ -136,6 +131,8 @@ public class MyAccessibilityService extends AccessibilityService {
         recycle(rootNode);
         if (parents.size() > 0) {
             Log.d(TAG, "getLastPacket: click " + parents.get(parents.size() - 1).performAction(AccessibilityNodeInfo.ACTION_CLICK));
+        } else {
+            isAccessibility = false;
         }
     }
 
@@ -174,17 +171,12 @@ public class MyAccessibilityService extends AccessibilityService {
             for (AccessibilityNodeInfo accessibilityNodeInfo : list) {
                 String s = accessibilityNodeInfo.getText().toString();
                 if (s.contains("手慢了")) {
-                    this.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+                    doBack(0);
                     isAccessibility = false;
-                    try {
-                        Thread.sleep(800);
-                        this.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
-                        autoLock();
-                        Log.d(TAG, "slow: stop Accessibilty");
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                        isAccessibility = false;
-                    }
+                    doBack(800);
+                    autoLock();
+                    Log.d(TAG, "slow: stop Accessibilty");
+                    isAccessibility = false;
                 }
             }
         }
@@ -212,6 +204,20 @@ public class MyAccessibilityService extends AccessibilityService {
             Log.d(TAG, "autoLock: 自动灭");
         }
         isMeUnLock = false;
+    }
+
+    private void doBack(int time) {
+        if (time == 0) {
+            this.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+            return;
+        }
+        try {
+            Thread.sleep(time);
+            this.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            isAccessibility = false;
+        }
     }
 
     @Override
