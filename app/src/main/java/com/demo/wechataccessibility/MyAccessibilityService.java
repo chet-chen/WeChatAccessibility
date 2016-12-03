@@ -5,6 +5,7 @@ import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Context;
+import android.os.Build;
 import android.os.PowerManager;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
@@ -20,7 +21,7 @@ import java.util.List;
 
 public class MyAccessibilityService extends AccessibilityService {
     private static final String TAG = "MyAccessibilityService";
-    private static final String OPENB_BUTTON_ID = "com.tencent.mm:id/bg7";
+    private static final String OPEN_BUTTON_ID = "com.tencent.mm:id/bg7";
     private static final String BACK_BUTTON_ID = "com.tencent.mm:id/gd";
     private static final String SLOW_TEXT_ID = "com.tencent.mm:id/bg6";
     private boolean isAccessibility = false;
@@ -57,13 +58,12 @@ public class MyAccessibilityService extends AccessibilityService {
                         if (content.contains("[微信红包]")) {
                             if (event.getParcelableData() != null &&
                                     event.getParcelableData() instanceof Notification) {
-                                autoUnlock();
                                 Notification notification = (Notification) event.getParcelableData();
                                 PendingIntent pendingIntent = notification.contentIntent;
                                 try {
                                     isAccessibility = true;
-                                    autoUnlock();
                                     Log.d(TAG, "onAccessibilityEvent: start Accessibility");
+                                    autoUnlock();
                                     pendingIntent.send();
 //                                  如果开启抢红包之前就处在LauncherUI则手动getLastPacket();
                                     if (beforeLauncherUI) {
@@ -74,7 +74,6 @@ public class MyAccessibilityService extends AccessibilityService {
                                             e.printStackTrace();
                                         }
                                     }
-                                    Log.d(TAG, "onAccessibilityEvent: 进入微信");
                                 } catch (PendingIntent.CanceledException e) {
                                     e.printStackTrace();
                                     isAccessibility = false;
@@ -96,9 +95,8 @@ public class MyAccessibilityService extends AccessibilityService {
                 Log.d(TAG, "onAccessibilityEvent: Window: " + className);
                 if (className.equals("com.tencent.mm.ui.LauncherUI")) {
                     getLastPacket();
-                    Log.d(TAG, "onAccessibilityEvent: 点击最后一个红包");
                 } else if (className.equals("com.tencent.mm.plugin.luckymoney.ui.LuckyMoneyReceiveUI")) {
-                    inputClick(OPENB_BUTTON_ID);
+                    inputClick(OPEN_BUTTON_ID);
                     Log.d(TAG, "onAccessibilityEvent: 开红包");
                     slow(SLOW_TEXT_ID);//手慢了
                 } else if (className.equals("com.tencent.mm.plugin.luckymoney.ui.LuckyMoneyDetailUI")) {
@@ -127,16 +125,22 @@ public class MyAccessibilityService extends AccessibilityService {
 
     public void getLastPacket() {
 //        点击最后一个红包
+        Log.d(TAG, "getLastPacket: 进入微信");
         AccessibilityNodeInfo rootNode = getRootInActiveWindow();
         recycle(rootNode);
         if (parents.size() > 0) {
             Log.d(TAG, "getLastPacket: click " + parents.get(parents.size() - 1).performAction(AccessibilityNodeInfo.ACTION_CLICK));
+            Log.d(TAG, "onAccessibilityEvent: 点击最后一个红包");
         } else {
+            Log.d(TAG, "getLastPacket: 没有红包");
+            doBack(500);
             isAccessibility = false;
+            autoLock();
         }
     }
 
     private void recycle(AccessibilityNodeInfo rootNode) {
+        parents.clear();
         if (rootNode.getChildCount() == 0) {
             if (rootNode.getText() != null) {
                 if ("领取红包".equals(rootNode.getText().toString())) {
@@ -171,8 +175,8 @@ public class MyAccessibilityService extends AccessibilityService {
             for (AccessibilityNodeInfo accessibilityNodeInfo : list) {
                 String s = accessibilityNodeInfo.getText().toString();
                 if (s.contains("手慢了")) {
+                    Log.d(TAG, "slow: 手慢了");
                     doBack(0);
-                    isAccessibility = false;
                     doBack(800);
                     autoLock();
                     Log.d(TAG, "slow: stop Accessibilty");
@@ -187,23 +191,44 @@ public class MyAccessibilityService extends AccessibilityService {
             wakeLock.acquire();
             Log.d(TAG, "onAccessibilityEvent: 亮屏");
         }
-        if (km.inKeyguardRestrictedInputMode()) {
-            keyguardLock.disableKeyguard();
-            Log.d(TAG, "onAccessibilityEvent: 解锁");
-            isMeUnLock = true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+            if (km.isDeviceLocked()) {
+                Log.d(TAG, "autoUnlock: sdk >= 22: 屏幕被密码锁柱");
+                wakeLock.release();
+                beforeLauncherUI = false;
+            } else {
+                if (km.inKeyguardRestrictedInputMode()) {
+                    keyguardLock.disableKeyguard();
+                    Log.d(TAG, "onAccessibilityEvent: 尝试解锁");
+                    isMeUnLock = true;
+                }
+            }
+        } else {
+            if (km.isKeyguardLocked()) {
+                Log.d(TAG, "autoUnlock: sdk < 22 屏幕被密码锁柱");
+                wakeLock.release();
+                beforeLauncherUI = false;
+            } else {
+                if (km.inKeyguardRestrictedInputMode()) {
+                    keyguardLock.disableKeyguard();
+                    Log.d(TAG, "onAccessibilityEvent: 尝试解锁");
+                    isMeUnLock = true;
+                }
+            }
         }
     }
 
     private void autoLock() {
-        if (!isMeUnLock)
-            return;
-        keyguardLock.reenableKeyguard();
-        Log.d(TAG, "autoLock: 自动锁");
-        if (wakeLock != null && pm.isScreenOn()) {
-            wakeLock.release();
-            Log.d(TAG, "autoLock: 自动灭");
+        if (isMeUnLock) {
+            keyguardLock.reenableKeyguard();
+            Log.d(TAG, "autoLock: 自动锁");
+            if (wakeLock != null && pm.isScreenOn()) {
+                wakeLock.release();
+                Log.d(TAG, "autoLock: 自动灭");
+            }
+            isMeUnLock = false;
+            beforeLauncherUI = false;
         }
-        isMeUnLock = false;
     }
 
     private void doBack(int time) {
