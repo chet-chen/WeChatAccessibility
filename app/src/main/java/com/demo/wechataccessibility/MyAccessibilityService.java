@@ -127,6 +127,7 @@ public class MyAccessibilityService extends AccessibilityService {
 //        点击最后一个红包
         Log.d(TAG, "getLastPacket: 进入微信");
         AccessibilityNodeInfo rootNode = getRootInActiveWindow();
+        parents.clear();
         recycle(rootNode);
         if (parents.size() > 0) {
             Log.d(TAG, "getLastPacket: click " + parents.get(parents.size() - 1).performAction(AccessibilityNodeInfo.ACTION_CLICK));
@@ -140,7 +141,7 @@ public class MyAccessibilityService extends AccessibilityService {
     }
 
     private void recycle(AccessibilityNodeInfo rootNode) {
-        parents.clear();
+//        把本页面红包全部存进 parents list
         if (rootNode.getChildCount() == 0) {
             if (rootNode.getText() != null) {
                 if ("领取红包".equals(rootNode.getText().toString())) {
