@@ -106,7 +106,6 @@ public class MyAccessibilityService extends AccessibilityService {
                     doBack(800);
                     autoLock();
                     Log.d(TAG, "onAccessibilityEvent: stop Accessibility");
-                    isAccessibility = false;
                 }
                 break;
         }
