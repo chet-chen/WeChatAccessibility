@@ -21,7 +21,16 @@
         android:id="@+id/textView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
         android:layout_marginBottom="30dp"
+        android:layout_marginTop="10dp"
         android:text="@string/hint" />
+
+    <EditText
+        android:id="@+id/edit_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="延时设置,默认500,手机性能差建议1000以上"
+        android:inputType="number"
+        android:maxLines="1"
+        android:textSize="15sp" />
 </LinearLayout>

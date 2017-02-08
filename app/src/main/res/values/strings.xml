@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">WeChat红包</string>
-    <string name="lable">微信6.3.31 自动抢红包</string>
-    <string name="description">微信版本不为6.3.31，可能失效</string>
-    <string name="hint">点击按钮跳转到设置，开启微信6.3.31 自动抢红包服务</string>
+    <string name="lable">微信6.5.4 自动抢红包</string>
+    <string name="description">微信版本不为6.5.4，可能失效</string>
+    <string name="hint">点击按钮跳转到设置，开启微信6.5.4 自动抢红包服务</string>
     <string name="buttonText">开启服务</string>
 </resources>
